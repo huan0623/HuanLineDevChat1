@@ -34,7 +34,7 @@ def GPT_response(text):
         {"role": "user", "content": text}
     ]
     # 接收回應
-    response = openai.ChatCompletion.create(model="gpt-4o-mini", messages=messages, prompt=text, temperature=0.5, max_tokens=1000)
+    response = openai.ChatCompletion.create(model="gpt-4o-mini", messages=messages, temperature=0.5, max_tokens=1000)
     print(response)
     # 重組回應
     answer = response['choices'][0]['text'].replace('。','')
