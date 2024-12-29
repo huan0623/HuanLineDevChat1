@@ -28,8 +28,13 @@ openai.api_key = os.getenv('OPENAI_API_KEY')
 
 # 接收: open ai 回應訊息的物件
 def GPT_response(text):
+    # 創建回應List
+    messages = [
+        {"role": "system", "content": "This is an ai chat bot assistant."},
+        {"role": "user", "content": text}
+    ]
     # 接收回應
-    response = openai.ChatCompletion.create(model="gpt-4o-mini", prompt=text, temperature=0.5, max_tokens=1000)
+    response = openai.ChatCompletion.create(model="gpt-4o-mini", messages=messages, prompt=text, temperature=0.5, max_tokens=1000)
     print(response)
     # 重組回應
     answer = response['choices'][0]['text'].replace('。','')
