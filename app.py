@@ -29,7 +29,7 @@ openai.api_key = os.getenv('OPENAI_API_KEY')
 # 接收: open ai 回應訊息的物件
 def GPT_response(text):
     # 接收回應
-    response = openai.Completion.create(model="gpt-3.5-turbo-instruct", prompt=text, temperature=0.5, max_tokens=500)
+    response = openai.Completion.create(model="gpt-4o", prompt=text, temperature=0.5, max_tokens=500)
     print(response)
     # 重組回應
     answer = response['choices'][0]['text'].replace('。','')
@@ -65,11 +65,13 @@ def handle_message(event):
         line_bot_api.reply_message(event.reply_token, TextSendMessage('你所使用的OPENAI API key額度可能已經超過，請於後台Log內確認錯誤訊息'))
         
 
+# 通知: POST
 @handler.add(PostbackEvent)
 def handle_message(event):
     print(event.postback.data)
 
 
+# 通知: 回應加入時的歡迎訊息
 @handler.add(MemberJoinedEvent)
 def welcome(event):
     uid = event.joined.members[0].user_id
@@ -80,6 +82,7 @@ def welcome(event):
     line_bot_api.reply_message(event.reply_token, message)
         
         
+# app default Entrance
 import os
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
