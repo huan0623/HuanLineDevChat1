@@ -4,6 +4,8 @@ import datetime
 import time
 import traceback
 import openai
+import requests
+
 from gtts import gTTS
 
 from flask import Flask, request, abort
@@ -30,22 +32,30 @@ openai.api_key = os.getenv('OPENAI_API_KEY')
 # 接收: open ai 回應訊息的物件
 def GPT_response(text):
     # 創建回應List
-    messages = [
-        {"role": "system", "content": "This is an ai chat bot assistant."},
-        {"role": "user", "content": text}
-    ]
+    messages = [{"role": "system", "content": "This is an ai chat bot assistant."}, {"role": "user", "content": text}]
     # 接收回應
     response = openai.ChatCompletion.create(model="gpt-4o-mini", messages=messages, temperature=0.5, max_tokens=1000)
     print(response)
     # 重組回應
     answer = response['choices'][0]['message']['content'].replace('。','')
     return answer
+
 # 將文本轉換為語音並返回文件路徑
 def text_to_speech(text):
     tts = gTTS(text=text, lang='zh')
     audio_file_path = os.path.join(static_tmp_path, 'response.mp3')
     tts.save(audio_file_path)
     return audio_file_path
+
+# 上傳音頻
+def upload_audio_file(file_path):
+    url = "https://drive.google.com/drive/folders/1RpsVNS9y_-QyOwddXrg9QXfgkciNsf-7?usp=sharing"
+    with open(file_path, 'rb') as f:
+        response = requests.post(url, files={'file': f})
+    if response.status_code == 200:
+        return response.json().get('url')  # 假設返回的 JSON 中有 URL
+    else:
+        raise Exception("Failed to upload audio file")     
 
 # 監聽: 所有來自 /callback 的 Post Request
 @app.route("/callback", methods=['POST'])
@@ -63,7 +73,7 @@ def callback():
     return 'OK'
 
 
-# 通知: 回應的資訊處理訊息
+# 回傳: 回應的資訊處理訊息
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     msg = event.message.text
@@ -73,8 +83,10 @@ def handle_message(event):
             text_to_convert = msg[len("語音回覆:"):].strip()
             GPT_answer = GPT_response(text_to_convert)
             audio_file_path = text_to_speech(GPT_answer)
-            with open(audio_file_path, 'rb') as audio_file:
-                line_bot_api.reply_message(event.reply_token, AudioSendMessage(audio_file))
+
+            # 上傳音頻文件至可公開訪問的URL
+            audio_url = upload_audio_file(audio_file_path)
+            line_bot_api.reply_message(event.reply_token, AudioSendMessage(original_content_url=audio_url, duration=60000))
         else:
             GPT_answer = GPT_response(msg)
             print(GPT_answer)
@@ -82,15 +94,15 @@ def handle_message(event):
     except:
         print(traceback.format_exc())
         line_bot_api.reply_message(event.reply_token, TextSendMessage('你所使用的OPENAI API key額度可能已經超過，請於後台Log內確認錯誤訊息'))
-        
 
-# 通知: POST
+
+# 回傳: POST
 @handler.add(PostbackEvent)
 def handle_message(event):
     print(event.postback.data)
 
 
-# 通知: 回應加入時的歡迎訊息
+# 回傳: 回應加入時的歡迎訊息
 @handler.add(MemberJoinedEvent)
 def welcome(event):
     uid = event.joined.members[0].user_id
@@ -98,9 +110,9 @@ def welcome(event):
     profile = line_bot_api.get_group_member_profile(gid, uid)
     name = profile.display_name
     message = TextSendMessage(text=f'{name}歡迎加入')
-    line_bot_api.reply_message(event.reply_token, message)
-        
-        
+    line_bot_api.reply_message(event.reply_token, message)  
+
+
 # app default Entrance
 import os
 if __name__ == "__main__":
