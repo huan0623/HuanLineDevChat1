@@ -4,6 +4,7 @@ import datetime
 import time
 import traceback
 import openai
+from gtts import gTTS
 
 from flask import Flask, request, abort
 
@@ -39,7 +40,12 @@ def GPT_response(text):
     # 重組回應
     answer = response['choices'][0]['message']['content'].replace('。','')
     return answer
-
+# 將文本轉換為語音並返回文件路徑
+def text_to_speech(text):
+    tts = gTTS(text=text, lang='zh')
+    audio_file_path = os.path.join(static_tmp_path, 'response.mp3')
+    tts.save(audio_file_path)
+    return audio_file_path
 
 # 監聽: 所有來自 /callback 的 Post Request
 @app.route("/callback", methods=['POST'])
@@ -62,9 +68,17 @@ def callback():
 def handle_message(event):
     msg = event.message.text
     try:
-        GPT_answer = GPT_response(msg)
-        print(GPT_answer)
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(GPT_answer))
+        if msg.startswith("語音回覆:"):
+            # after get prompt include 語音
+            text_to_convert = msg[len("語音回覆:"):].strip()
+            GPT_answer = GPT_response(text_to_convert)
+            audio_file_path = text_to_speech(GPT_answer)
+            with open(audio_file_path, 'rb') as audio_file:
+                line_bot_api.reply_message(event.reply_token, AudioSendMessage(audio_file))
+        else:
+            GPT_answer = GPT_response(msg)
+            print(GPT_answer)
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(GPT_answer))
     except:
         print(traceback.format_exc())
         line_bot_api.reply_message(event.reply_token, TextSendMessage('你所使用的OPENAI API key額度可能已經超過，請於後台Log內確認錯誤訊息'))
