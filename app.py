@@ -42,6 +42,7 @@ def GPT_response(text):
 
 # 將文本轉換為語音並返回文件路徑
 def text_to_speech(text):
+    os.makedirs(static_tmp_path, exist_ok=True)  # 如果目錄不存在則創建
     tts = gTTS(text=text, lang='zh')
     audio_file_path = os.path.join(static_tmp_path, 'response.mp3')
     tts.save(audio_file_path)
